@@ -1,0 +1,16 @@
+{
+    "The Caves": {
+        levels: [
+            {
+                size: [15, 15],
+            }
+        ]
+    },
+    "The Collapse": {
+        levels: [
+            {
+                size: [12, 12],
+            }
+        ]
+    },
+}

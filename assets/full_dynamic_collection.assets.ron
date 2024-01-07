@@ -1,0 +1,9 @@
+({
+    "terrain_rocks": TextureAtlas (
+        path: "terrain_rocks.png",
+        tile_size_x: 32.,
+        tile_size_y: 32.,
+        columns: 4,
+        rows: 1,
+    )
+ })
