@@ -1,10 +1,16 @@
-use bevy::{prelude::*, window::PrimaryWindow};
-
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use crate::{
-    assets::SpriteAssets, AppState, MainCamera, GRID_HEIGHT, GRID_WIDTH, SPRITE_PX_X, SPRITE_PX_Y,
-};
+use crate::assets::SpriteAssets;
+use crate::camera::MainCamera;
+use crate::expedition::{ExpeditionPersist, InitExpedition};
+use crate::point::xy_to_idx;
+use crate::treasures::CheckTreasure;
+use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
+
+const BREAKABLE_Z: f32 = 30.0;
+const BACKGROUND_Z: f32 = 1.0;
 
 pub struct MiningPlugin;
 
@@ -13,24 +19,33 @@ impl Plugin for MiningPlugin {
         app.add_systems(OnEnter(AppState::Expedition), init_mining_grid)
             .add_systems(
                 Update,
-                (player_mouse_mine, handle_mine_actions, update_mining_tile)
+                (
+                    player_mouse_mine.before(handle_mine_actions),
+                    handle_mine_actions,
+                    update_mining_tile.after(handle_mine_actions),
+                )
                     .run_if(in_state(AppState::Expedition)),
             )
-            .add_event::<MineAction>()
-            .add_event::<InitMiningGrid>();
+            .add_event::<MineAction>();
     }
 }
 
 #[derive(Component)]
-struct MiningGrid {
-    pub tiles: Vec<Entity>,
+pub struct MiningGrid {
+    pub rock_tiles: Vec<Option<Entity>>,
     pub width: usize,
     pub height: usize,
 }
 
+impl MiningGrid {
+    fn new(width: usize, height: usize) -> Self {
+        Self { rock_tiles: vec![None; width * height], width, height }
+    }
+}
+
 #[derive(Component)]
-struct MiningTile {
-    hp: usize,
+pub struct MiningTile {
+    pub hp: usize,
 }
 
 impl MiningTile {
@@ -42,28 +57,19 @@ impl MiningTile {
 #[derive(Event)]
 struct MineAction(pub Entity);
 
-#[derive(Event, Debug)]
-pub struct InitMiningGrid {
-    pub size_x: usize,
-    pub size_y: usize,
-}
-
-fn init_mining_grid(
-    mut commands: Commands,
-    mut ev_init: EventReader<InitMiningGrid>,
-    sprites: Res<SpriteAssets>,
-) {
-    let Some(grid) = ev_init.read().next() else {
-        warn!("no event to create mining grid with");
+fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedition>, sprites: Res<SpriteAssets>) {
+    let Some(new_grid) = ev_init.read().next() else {
+        info!("entering expedition state, no event to create mining grid");
         return;
     };
-    info!("running init mining grid {:?}", grid);
+    info!("running init mining grid {:?}", new_grid);
 
-    let mut tiles = Vec::new();
+    let mut grid = MiningGrid::new(new_grid.size_x, new_grid.size_y);
     let mut rng = rand::thread_rng();
 
-    for y in 0..grid.size_y {
-        for x in 0..grid.size_x {
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            let tile_idx = xy_to_idx(x, y, grid.width) as usize;
             let x = (x * SPRITE_PX_X) as f32;
             let y = (y * SPRITE_PX_Y) as f32;
             let hp: usize = rng.gen::<usize>() % 4;
@@ -72,18 +78,25 @@ fn init_mining_grid(
                 SpriteSheetBundle {
                     texture_atlas: sprites.mining_rocks.clone(),
                     sprite: TextureAtlasSprite::new(hp),
-                    transform: Transform::from_xyz(x, y, 0.0),
+                    transform: Transform::from_xyz(x, y, BREAKABLE_Z),
                     ..default()
                 },
+                ExpeditionPersist,
             ));
-            tiles.push(tile.id());
+            grid.rock_tiles[tile_idx] = Some(tile.id());
+
+            let _bg = commands.spawn((
+                SpriteSheetBundle {
+                    texture_atlas: sprites.mining_rocks.clone(),
+                    sprite: TextureAtlasSprite::new(5),
+                    transform: Transform::from_xyz(x, y, BACKGROUND_Z),
+                    ..default()
+                },
+                ExpeditionPersist,
+            ));
         }
     }
-    commands.spawn(MiningGrid {
-        height: GRID_HEIGHT,
-        width: GRID_WIDTH,
-        tiles,
-    });
+    commands.spawn(grid);
     info!("created mining grid");
 }
 
@@ -107,10 +120,7 @@ fn player_mouse_mine(
     {
         let tile_x = (world_pos.x / SPRITE_PX_X as f32).round() as i32;
         let tile_y = (world_pos.y / SPRITE_PX_Y as f32).round() as i32;
-        println!(
-            "World coords: {}/{} Tile coords: {}/{}",
-            world_pos.x, world_pos.y, tile_x, tile_y
-        );
+        println!("World coords: {}/{} Tile coords: {}/{}", world_pos.x, world_pos.y, tile_x, tile_y);
 
         let grid = q_mining_grid.single();
         if tile_x < 0 || tile_y < 0 || tile_x >= grid.width as i32 || tile_y >= grid.height as i32 {
@@ -119,25 +129,30 @@ fn player_mouse_mine(
         }
 
         let idx = xy_to_idx(tile_x as usize, tile_y as usize, grid.width);
-        let tile_e = match grid.tiles.get(idx) {
-            Some(e) => e,
+        match grid.rock_tiles.get(idx) {
+            Some(rock_tile) => {
+                if let Some(e) = rock_tile {
+                    ev_mine.send(MineAction(*e));
+                }
+            }
             None => {
                 warn!("Index was out of bounds.");
                 return;
             }
-        };
-        ev_mine.send(MineAction(*tile_e));
+        }
     }
 }
 
 fn handle_mine_actions(
     mut ev_mine: EventReader<MineAction>,
     mut q_mining_tiles: Query<&mut MiningTile>,
+    mut ev_treasure_check: EventWriter<CheckTreasure>,
 ) {
     for ev in ev_mine.read() {
         match q_mining_tiles.get_mut(ev.0) {
             Ok(mut hit) => {
                 hit.hp = hit.hp.saturating_sub(1);
+                ev_treasure_check.send(CheckTreasure {});
                 debug!("Tile was hit");
             }
             Err(_) => {
@@ -148,23 +163,12 @@ fn handle_mine_actions(
     }
 }
 
-fn update_mining_tile(
-    mut q_mining_tiles: Query<(
-        Entity,
-        &mut Visibility,
-        &mut TextureAtlasSprite,
-        &MiningTile,
-    )>,
-) {
-    for (_e, mut vis, mut atlas_idx, tile) in q_mining_tiles.iter_mut() {
+fn update_mining_tile(mut q_mining_tiles: Query<(&mut Visibility, &mut TextureAtlasSprite, &MiningTile)>) {
+    for (mut vis, mut atlas_idx, tile) in q_mining_tiles.iter_mut() {
         if tile.hp == 0 {
             *vis = Visibility::Hidden;
         } else {
             atlas_idx.index = tile.hp - 1;
         }
     }
-}
-
-fn xy_to_idx(x: usize, y: usize, width: usize) -> usize {
-    x + y * width
 }
