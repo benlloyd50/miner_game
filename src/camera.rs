@@ -29,7 +29,7 @@ fn init_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, CAMERA_Z),
-            projection: OrthographicProjection { scaling_mode: ScalingMode::WindowSize(1.0), ..default() },
+            projection: OrthographicProjection { scaling_mode: ScalingMode::WindowSize(2.0), ..default() },
             camera: Camera { hdr: true, ..default() },
             ..default()
         },
@@ -52,4 +52,3 @@ fn update_camera_for_expedition(
     );
     // cam.1.scaling_mode = ScalingMode::WindowSize(ev.scale);
 }
-

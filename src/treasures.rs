@@ -1,7 +1,7 @@
 use bevy::log::{error, info};
 use bevy::prelude::{
-    debug, in_state, Color, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter,
-    Plugin, Query, Res, Transform, Update,
+    debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Plugin,
+    Query, Res, Transform, Update,
 };
 use bevy::sprite::{SpriteSheetBundle, TextureAtlasSprite};
 use rand::seq::SliceRandom;

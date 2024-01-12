@@ -2,6 +2,7 @@ mod expedition;
 
 use bevy::prelude::*;
 
+use crate::assets::FontAssets;
 use crate::data_read::LEVEL_DB;
 use crate::expedition::{in_area_state, Area, LevelChange};
 use crate::AppState;
@@ -53,7 +54,7 @@ fn button_system(
 #[derive(Component)]
 pub struct StateUIMaster;
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, fonts: Res<FontAssets>) {
     debug!("setting up ui for area viewer");
     let Some(info) = LEVEL_DB.get() else {
         return;
@@ -98,7 +99,7 @@ fn setup(mut commands: Commands) {
                     .with_children(|parent| {
                         parent.spawn(TextBundle::from_section(
                             format!("{}", level.name),
-                            TextStyle { font_size: 40.0, color: Color::rgb(0.9, 0.9, 0.9), ..Default::default() },
+                            TextStyle { font_size: 40.0, color: Color::rgb(0.9, 0.9, 0.9), font: fonts.text.clone() },
                         ));
                     });
             }

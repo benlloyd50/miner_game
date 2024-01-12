@@ -1,5 +1,6 @@
 mod assets;
 mod camera;
+mod consts;
 mod data_read;
 mod expedition;
 mod mining;
@@ -40,7 +41,8 @@ fn main() {
                 .set(LogPlugin {
                     filter: "info,wgpu_core=warn,wgpu_hal=warn,mygame=debug".into(),
                     level: bevy::log::Level::DEBUG,
-                }).set(ImagePlugin::default_nearest()),
+                })
+                .set(ImagePlugin::default_nearest()),
             CameraPlugin,
             MiningPlugin,
             TreasurePlugin,

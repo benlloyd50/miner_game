@@ -12,6 +12,7 @@ impl Plugin for AssetLoadPlugin {
             LoadingState::new(AppState::AssetLoading)
                 .with_dynamic_assets_file::<StandardDynamicAssetCollection>("full_dynamic_collection.assets.ron")
                 .load_collection::<SpriteAssets>()
+                .load_collection::<FontAssets>()
                 .continue_to_state(AppState::AreaViewer { curr_area: Area::TheCaves }),
         );
     }
@@ -25,4 +26,16 @@ pub struct SpriteAssets {
     pub treasures: Handle<TextureAtlas>,
     #[asset(key = "tools")]
     pub tools: Handle<TextureAtlas>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct UiAssets {
+    #[asset(key = "tool_shadow")]
+    pub tool_shadow: Handle<Image>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct FontAssets {
+    #[asset(key = "kaph")]
+    pub text: Handle<Font>,
 }

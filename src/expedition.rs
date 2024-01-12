@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use bevy::log::{error, warn};
 use bevy::prelude::{
-    Commands, Component, Entity, Event, EventReader, EventWriter, Input, IntoSystemConfigs, KeyCode, NextState, OnExit,
-    Plugin, Query, Res, ResMut, State, Update, With, in_state,
+    in_state, Commands, Component, Entity, Event, EventReader, EventWriter, Input, IntoSystemConfigs, KeyCode,
+    NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With,
 };
 
 use crate::camera::CameraUpdate;

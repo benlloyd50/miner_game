@@ -4,6 +4,10 @@ use rand::Rng;
 
 use crate::assets::SpriteAssets;
 use crate::camera::MainCamera;
+use crate::consts::{
+    A_BORDER_BOTTOM, A_BORDER_LEFT, A_BORDER_RIGHT, A_BORDER_TOP, A_CORNER_BL, A_CORNER_BR, A_CORNER_TL, A_CORNER_TR,
+    A_DARK_GROUND,
+};
 use crate::expedition::{ExpeditionPersist, InitExpedition};
 use crate::point::xy_to_idx;
 use crate::stability::StabilityDamage;
@@ -97,8 +101,58 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
             ));
         }
     }
-    commands.spawn(grid);
+    commands.spawn((grid, ExpeditionPersist));
     info!("created mining grid");
+
+    for y in (-50)..50 {
+        for x in (-50)..50 {
+            if (0..new_grid.size_x as i32).contains(&x) && (0..new_grid.size_y as i32).contains(&y) {
+                continue;
+            }
+            let atlas_idx = get_border_atlas_idx(x, y, (new_grid.size_x as i32, new_grid.size_y as i32));
+
+            let x = (x * SPRITE_PX_X as i32) as f32;
+            let y = (y * SPRITE_PX_Y as i32) as f32;
+            commands.spawn((
+                SpriteSheetBundle {
+                    texture_atlas: sprites.lvl1xped.clone(),
+                    sprite: TextureAtlasSprite::new(atlas_idx),
+                    transform: Transform::from_xyz(x, y, BACKGROUND_Z),
+                    ..default()
+                },
+                ExpeditionPersist,
+            ));
+        }
+    }
+}
+
+/// Helper to find which atlas index to use for creating the border around the mineable tiles
+fn get_border_atlas_idx(x: i32, y: i32, grid: (i32, i32)) -> usize {
+    if x < -1 || y < -1 || x > grid.0 || y > grid.1 {
+        A_DARK_GROUND
+    } else if x == -1 {
+        if y == -1 {
+            A_CORNER_BL
+        } else if y == grid.1 {
+            A_CORNER_TL
+        } else {
+            A_BORDER_LEFT
+        }
+    } else if x == grid.0 {
+        if y == -1 {
+            A_CORNER_BR
+        } else if y == grid.1 {
+            A_CORNER_TR
+        } else {
+            A_BORDER_RIGHT
+        }
+    } else if y == -1 {
+        A_BORDER_BOTTOM
+    } else if y == grid.1 {
+        A_BORDER_TOP
+    } else {
+        A_DARK_GROUND
+    }
 }
 
 fn player_mouse_mine(

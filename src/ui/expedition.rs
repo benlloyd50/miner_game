@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 
+use super::{cleanup, StateUIMaster};
+use crate::assets::UiAssets;
 use crate::AppState;
-
-use super::{StateUIMaster, cleanup};
-
 
 pub struct ExpeditionUIPlugin;
 
@@ -14,9 +13,9 @@ impl Plugin for ExpeditionUIPlugin {
     }
 }
 
-
-fn init_expedition_ui(mut commands: Commands) {
-    commands.spawn((
+fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>) {
+    commands
+        .spawn((
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
@@ -28,5 +27,17 @@ fn init_expedition_ui(mut commands: Commands) {
                 ..default()
             },
             StateUIMaster,
-        ));
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                NodeBundle {
+                    // style: Style {
+                    //     ..default()
+                    // },
+                    background_color: Color::WHITE.into(),
+                    ..default()
+                },
+                UiImage::new(ui_assets.tool_shadow.clone()),
+            ));
+        });
 }
