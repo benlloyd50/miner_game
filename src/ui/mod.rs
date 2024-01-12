@@ -1,3 +1,5 @@
+mod expedition;
+
 use bevy::prelude::*;
 
 use crate::data_read::LEVEL_DB;
@@ -52,7 +54,7 @@ fn button_system(
 pub struct StateUIMaster;
 
 fn setup(mut commands: Commands) {
-    debug!("setting up ui for expedition");
+    debug!("setting up ui for area viewer");
     let Some(info) = LEVEL_DB.get() else {
         return;
     };
@@ -71,7 +73,6 @@ fn setup(mut commands: Commands) {
             StateUIMaster,
         ))
         .with_children(|parent| {
-            // use level info to create generation events (mining grid, stability)
             debug!("does info work");
             let Some(area) = info.get(&Area::TheCaves.to_string()) else {
                 return;

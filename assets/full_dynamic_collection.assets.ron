@@ -1,9 +1,23 @@
 ({
-    "terrain_rocks": TextureAtlas (
-        path: "terrain_rocks.png",
+    "level_1_xped": TextureAtlas (
+        path: "level_1_xped.png",
+        tile_size_x: 16.,
+        tile_size_y: 16.,
+        columns: 8,
+        rows: 8,
+    ),
+    "treasures": TextureAtlas (
+        path: "treasures.png",
+        tile_size_x: 32.,
+        tile_size_y: 32.,
+        columns: 10,
+        rows: 10,
+    ),
+    "tools": TextureAtlas (
+        path: "tools.png",
         tile_size_x: 32.,
         tile_size_y: 32.,
         columns: 4,
-        rows: 1,
+        rows: 4,
     )
  })

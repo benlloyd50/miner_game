@@ -3,7 +3,7 @@ use std::fmt::Display;
 use bevy::log::{error, warn};
 use bevy::prelude::{
     Commands, Component, Entity, Event, EventReader, EventWriter, Input, IntoSystemConfigs, KeyCode, NextState, OnExit,
-    Plugin, Query, Res, ResMut, State, Update, With,
+    Plugin, Query, Res, ResMut, State, Update, With, in_state,
 };
 
 use crate::camera::CameraUpdate;
@@ -18,6 +18,7 @@ impl Plugin for ExpeditionPlugin {
         app.add_event::<LevelChange>()
             .add_event::<InitExpedition>()
             .add_systems(Update, (setup_expedition, stop_expedition).run_if(in_area_state))
+            .add_systems(Update, (stop_expedition).run_if(in_state(AppState::Expedition)))
             .add_systems(OnExit(AppState::Expedition), cleanup_expedition);
     }
 }
@@ -90,7 +91,7 @@ fn setup_expedition(
 
     let level = &info.levels[ev.level_idx];
     ev_init_mining_grid.send(InitExpedition { size_x: level.size.0, size_y: level.size.1 });
-    ev_cam_update.send(CameraUpdate { width: level.size.0 as f32, height: level.size.1 as f32 });
+    ev_cam_update.send(CameraUpdate { width: level.size.0 as f32, height: level.size.1 as f32, scale: 2.0 });
     *stability = match level.stability {
         LevelStability::Normal => Stability::new(10),
     };

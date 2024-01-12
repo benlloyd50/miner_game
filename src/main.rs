@@ -30,7 +30,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         mode: WindowMode::Windowed,
-                        resolution: WindowResolution::new(800.0, 800.0),
+                        resolution: WindowResolution::new(1280.0, 720.0),
                         title: "Underground Miner".to_string(),
                         resizable: false,
                         ..Default::default()
@@ -40,7 +40,7 @@ fn main() {
                 .set(LogPlugin {
                     filter: "info,wgpu_core=warn,wgpu_hal=warn,mygame=debug".into(),
                     level: bevy::log::Level::DEBUG,
-                }),
+                }).set(ImagePlugin::default_nearest()),
             CameraPlugin,
             MiningPlugin,
             TreasurePlugin,
@@ -64,5 +64,5 @@ enum AppState {
     Expedition,
 }
 
-const SPRITE_PX_X: usize = 32;
+const SPRITE_PX_X: usize = 16;
 const SPRITE_PX_Y: usize = SPRITE_PX_X;

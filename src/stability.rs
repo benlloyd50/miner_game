@@ -20,6 +20,18 @@ pub struct Stability {
     remaining: i32,
 }
 
+impl Stability {
+    pub fn new(value: i32) -> Self {
+        Self { remaining: value }
+    }
+}
+
+impl Default for Stability {
+    fn default() -> Self {
+        Self { remaining: 0 }
+    }
+}
+
 #[derive(Deserialize)]
 pub enum LevelStability {
     Normal,
@@ -30,15 +42,9 @@ pub struct StabilityDamage {
     amt: u32,
 }
 
-impl Stability {
-    pub fn new(value: i32) -> Self {
-        Self { remaining: value }
-    }
-}
-
-impl Default for Stability {
-    fn default() -> Self {
-        Self { remaining: 0 }
+impl StabilityDamage {
+    pub fn new(value: u32) -> Self {
+        Self { amt: value }
     }
 }
 

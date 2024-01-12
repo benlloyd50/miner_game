@@ -1,7 +1,7 @@
 use bevy::log::{error, info};
 use bevy::prelude::{
-    debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Plugin,
-    Query, Res, Transform, Update,
+    debug, in_state, Color, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter,
+    Plugin, Query, Res, Transform, Update,
 };
 use bevy::sprite::{SpriteSheetBundle, TextureAtlasSprite};
 use rand::seq::SliceRandom;
@@ -103,6 +103,7 @@ fn init_treasures(mut commands: Commands, mut ev_init: EventReader<InitExpeditio
             commands.spawn((
                 SpriteSheetBundle {
                     texture_atlas: sprites.treasures.clone(),
+                    // sprite: TextureAtlasSprite { color: Color::rgba(1.0, 0.0, 0.0, 1.0), index: *tile as usize, ..Default::default() },
                     sprite: TextureAtlasSprite::new(*tile as usize),
                     transform: Transform::from_xyz(
                         (new_pos.x * SPRITE_PX_X) as f32,

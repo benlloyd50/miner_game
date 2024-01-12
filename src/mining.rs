@@ -6,6 +6,7 @@ use crate::assets::SpriteAssets;
 use crate::camera::MainCamera;
 use crate::expedition::{ExpeditionPersist, InitExpedition};
 use crate::point::xy_to_idx;
+use crate::stability::StabilityDamage;
 use crate::treasures::CheckTreasure;
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
 
@@ -76,7 +77,7 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
             let tile = commands.spawn((
                 MiningTile::new(hp + 1),
                 SpriteSheetBundle {
-                    texture_atlas: sprites.mining_rocks.clone(),
+                    texture_atlas: sprites.lvl1xped.clone(),
                     sprite: TextureAtlasSprite::new(hp),
                     transform: Transform::from_xyz(x, y, BREAKABLE_Z),
                     ..default()
@@ -87,7 +88,7 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
 
             let _bg = commands.spawn((
                 SpriteSheetBundle {
-                    texture_atlas: sprites.mining_rocks.clone(),
+                    texture_atlas: sprites.lvl1xped.clone(),
                     sprite: TextureAtlasSprite::new(5),
                     transform: Transform::from_xyz(x, y, BACKGROUND_Z),
                     ..default()
@@ -146,6 +147,7 @@ fn player_mouse_mine(
 fn handle_mine_actions(
     mut ev_mine: EventReader<MineAction>,
     mut q_mining_tiles: Query<&mut MiningTile>,
+    mut ev_stability: EventWriter<StabilityDamage>,
     mut ev_treasure_check: EventWriter<CheckTreasure>,
 ) {
     for ev in ev_mine.read() {
@@ -153,6 +155,7 @@ fn handle_mine_actions(
             Ok(mut hit) => {
                 hit.hp = hit.hp.saturating_sub(1);
                 ev_treasure_check.send(CheckTreasure {});
+                ev_stability.send(StabilityDamage::new(1));
                 debug!("Tile was hit");
             }
             Err(_) => {

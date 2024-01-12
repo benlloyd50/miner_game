@@ -2,15 +2,29 @@
     "The Caves": {
         levels: [
             {
+                name: "Mining 101",
+                size: [13, 10],
+                stability: "Normal",
+            },
+            {
+                name: "Excavation Site",
                 size: [15, 15],
-            }
+                stability: "Normal",
+            },
+            {
+                name: "Wayback Deposit",
+                size: [13, 13],
+                stability: "Normal",
+            },
         ]
     },
     "The Collapse": {
         levels: [
             {
+                name: "Under heavy rocks",
                 size: [12, 12],
-            }
+                stability: "Normal",
+            },
         ]
     },
 }

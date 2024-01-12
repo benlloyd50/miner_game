@@ -19,8 +19,10 @@ impl Plugin for AssetLoadPlugin {
 
 #[derive(AssetCollection, Resource)]
 pub struct SpriteAssets {
-    #[asset(key = "terrain_rocks")]
-    pub mining_rocks: Handle<TextureAtlas>,
+    #[asset(key = "level_1_xped")]
+    pub lvl1xped: Handle<TextureAtlas>,
     #[asset(key = "treasures")]
     pub treasures: Handle<TextureAtlas>,
+    #[asset(key = "tools")]
+    pub tools: Handle<TextureAtlas>,
 }

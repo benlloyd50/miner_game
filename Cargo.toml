@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = {version = "0.12", features = ["file_watcher"]}
+# dynamic_linking must be disabled before releasing
+bevy = {version = "0.12", features = ["file_watcher", "dynamic_linking",]}
 bevy_asset_loader = {version="0.19", features = ["standard_dynamic_assets", "2d"]}
 rand = "0.8.5"
 
