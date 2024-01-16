@@ -3,7 +3,7 @@ use std::fmt::Display;
 use bevy::log::{error, warn};
 use bevy::prelude::{
     in_state, Commands, Component, Entity, Event, EventReader, EventWriter, Input, IntoSystemConfigs, KeyCode,
-    NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With,
+    NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With, DespawnRecursiveExt,
 };
 
 use crate::camera::CameraUpdate;
@@ -17,6 +17,7 @@ impl Plugin for ExpeditionPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_event::<LevelChange>()
             .add_event::<InitExpedition>()
+            .add_event::<ExpeditionClear>()
             .add_systems(Update, (setup_expedition, stop_expedition).run_if(in_area_state))
             .add_systems(Update, (stop_expedition).run_if(in_state(AppState::Expedition)))
             .add_systems(OnExit(AppState::Expedition), cleanup_expedition);
@@ -53,6 +54,13 @@ pub struct InitExpedition {
 /// Marks an entity as something that persists only for the lifetime of the current expedition
 #[derive(Component)]
 pub struct ExpeditionPersist;
+
+#[derive(Event)]
+pub enum ExpeditionClear {
+    AllTreasure,
+    EarlyLeave,
+    _CaveIn,
+}
 
 // Flow of events
 // In map view of levels, AppState::LevelViewer{ area }
@@ -100,14 +108,20 @@ fn setup_expedition(
     next_state.set(AppState::Expedition)
 }
 
+fn check_expedition_clear(mut ev_expedition_clear: EventReader<ExpeditionClear>) {
+    let Some(ev) = ev_expedition_clear.read().next() else {
+        return;
+    };
+}
+
 fn cleanup_expedition(mut commands: Commands, q_expedition_entities: Query<Entity, With<ExpeditionPersist>>) {
     for e in q_expedition_entities.iter() {
-        commands.entity(e).despawn();
+        commands.entity(e).despawn_recursive();
     }
 }
 
-fn stop_expedition(mut next_state: ResMut<NextState<AppState>>, keyboard: Res<Input<KeyCode>>) {
-    if !keyboard.just_pressed(KeyCode::Back) {
+fn stop_expedition(mut next_state: ResMut<NextState<AppState>>, keeb: Res<Input<KeyCode>>) {
+    if !keeb.just_pressed(KeyCode::Back) {
         return;
     }
     next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });

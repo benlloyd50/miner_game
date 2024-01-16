@@ -6,6 +6,7 @@ mod expedition;
 mod mining;
 mod point;
 mod stability;
+mod tools;
 mod treasures;
 mod ui;
 
@@ -66,5 +67,5 @@ enum AppState {
     Expedition,
 }
 
-const SPRITE_PX_X: usize = 16;
-const SPRITE_PX_Y: usize = SPRITE_PX_X;
+const SPRITE_PX_X: u32 = 16;
+const SPRITE_PX_Y: u32 = SPRITE_PX_X;

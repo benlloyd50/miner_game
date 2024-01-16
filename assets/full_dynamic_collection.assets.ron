@@ -19,5 +19,17 @@
         tile_size_y: 32.,
         columns: 4,
         rows: 4,
-    )
+    ),
+    "tool_shadow": File (
+        path: "tool_shadow.png",
+    ),
+    "level_1fg": File (
+        path: "level1_fg200simp.png",
+    ),
+    "kaph": File (
+        path: "kaph_regular.ttf",
+    ),
+    "red_button": File (
+        path: "leave_button.png",
+    ),
  })

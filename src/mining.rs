@@ -9,7 +9,7 @@ use crate::consts::{
     A_DARK_GROUND,
 };
 use crate::expedition::{ExpeditionPersist, InitExpedition};
-use crate::point::xy_to_idx;
+use crate::point::{xy_to_idx, UPoint};
 use crate::stability::StabilityDamage;
 use crate::treasures::CheckTreasure;
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
@@ -27,10 +27,12 @@ impl Plugin for MiningPlugin {
                 (
                     player_mouse_mine.before(handle_mine_actions),
                     handle_mine_actions,
+                    switch_tool,
                     update_mining_tile.after(handle_mine_actions),
                 )
                     .run_if(in_state(AppState::Expedition)),
             )
+            .init_resource::<ActiveTool>()
             .add_event::<MineAction>();
     }
 }
@@ -59,10 +61,42 @@ impl MiningTile {
     }
 }
 
-#[derive(Event)]
-struct MineAction(pub Entity);
+#[derive(Resource, Default)]
+pub struct ActiveTool(pub ToolType);
 
-fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedition>, sprites: Res<SpriteAssets>) {
+#[derive(Default)]
+pub enum ToolType {
+    #[default]
+    TinyHammer,
+    Pickaxe {
+        rotation: PickaxeRotation,
+    },
+}
+
+#[derive(Copy, Clone)]
+pub enum PickaxeRotation {
+    Horizontal,
+    Vertical,
+    Cross,
+}
+
+struct TileHit {
+    tile: Entity,
+    damage: usize,
+}
+
+#[derive(Event)]
+struct MineAction {
+    tile_x: u32,
+    tile_y: u32,
+}
+
+fn init_mining_grid(
+    mut commands: Commands,
+    mut ev_init: EventReader<InitExpedition>,
+    sprites: Res<SpriteAssets>,
+    mut tool: ResMut<ActiveTool>,
+) {
     let Some(new_grid) = ev_init.read().next() else {
         info!("entering expedition state, no event to create mining grid");
         return;
@@ -75,8 +109,8 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
     for y in 0..grid.height {
         for x in 0..grid.width {
             let tile_idx = xy_to_idx(x, y, grid.width) as usize;
-            let x = (x * SPRITE_PX_X) as f32;
-            let y = (y * SPRITE_PX_Y) as f32;
+            let x = (x * SPRITE_PX_X as usize) as f32;
+            let y = (y * SPRITE_PX_Y as usize) as f32;
             let hp: usize = rng.gen::<usize>() % 4;
             let tile = commands.spawn((
                 MiningTile::new(hp + 1),
@@ -101,6 +135,9 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
             ));
         }
     }
+
+    // update the hammer as the starting tool
+    tool.0 = ToolType::TinyHammer;
     commands.spawn((grid, ExpeditionPersist));
     info!("created mining grid");
 
@@ -126,7 +163,106 @@ fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedit
     }
 }
 
-/// Helper to find which atlas index to use for creating the border around the mineable tiles
+/// Mouse Input for player to touch the mining tiles
+fn player_mouse_mine(
+    q_windows: Query<&Window, With<PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    q_mining_grid: Query<&MiningGrid>,
+    mut ev_mine: EventWriter<MineAction>,
+    mouse: Res<Input<MouseButton>>,
+) {
+    if !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
+    let (cam, cam_trans) = q_camera.single();
+    let window = q_windows.single();
+
+    if let Some(world_pos) = window
+        .cursor_position()
+        .and_then(|cursor| cam.viewport_to_world(cam_trans, cursor))
+        .map(|ray| ray.origin.truncate())
+    {
+        let tile_x = (world_pos.x / SPRITE_PX_X as f32).round() as i32;
+        let tile_y = (world_pos.y / SPRITE_PX_Y as f32).round() as i32;
+        println!("World coords: {}/{} Tile coords: {}/{}", world_pos.x, world_pos.y, tile_x, tile_y);
+
+        let grid = q_mining_grid.single();
+        // Click needs to be within grid of mineable rocks to even be considered a mining action
+        if tile_x < 0 || tile_y < 0 || tile_x >= grid.width as i32 || tile_y >= grid.height as i32 {
+            warn!("Click was outside the mining grid.");
+            return;
+        }
+
+        ev_mine.send(MineAction { tile_x: tile_x as u32, tile_y: tile_y as u32 });
+    }
+}
+
+fn handle_mine_actions(
+    mut ev_mine: EventReader<MineAction>,
+    mut q_mining_tiles: Query<&mut MiningTile>,
+    mut ev_stability: EventWriter<StabilityDamage>,
+    mut ev_treasure_check: EventWriter<CheckTreasure>,
+    q_mining_grid: Query<&MiningGrid>,
+    tool: Res<ActiveTool>,
+) {
+    let grid = q_mining_grid.single();
+    for ev in ev_mine.read() {
+        let start = UPoint::new(ev.tile_x as usize, ev.tile_y as usize);
+        let tiles_hit = get_tile_hits(&tool.0, &start, &grid);
+        if tiles_hit.len() != 0 {
+            ev_stability.send(StabilityDamage::new(get_hit_stability(&tool.0, &tiles_hit)));
+        }
+        for TileHit { tile, damage } in tiles_hit.iter() {
+            match q_mining_tiles.get_mut(*tile) {
+                Ok(mut hit) => {
+                    hit.hp = hit.hp.saturating_sub(*damage);
+                    ev_treasure_check.send(CheckTreasure {});
+                    debug!("Tile was hit");
+                }
+                Err(_) => {
+                    debug!("Entity did not have mining tile component.");
+                    return;
+                }
+            };
+        }
+    }
+}
+
+fn switch_tool(mut tool: ResMut<ActiveTool>, keeb: Res<Input<KeyCode>>) {
+    for just_pressed in keeb.get_just_pressed() {
+        match just_pressed {
+            KeyCode::Key1 => {
+                tool.0 = ToolType::TinyHammer;
+            }
+            KeyCode::Key2 => {
+                tool.0 = match tool.0 {
+                    ToolType::Pickaxe { rotation } => {
+                        let rotation = match rotation {
+                            PickaxeRotation::Horizontal => PickaxeRotation::Vertical,
+                            PickaxeRotation::Vertical => PickaxeRotation::Cross,
+                            PickaxeRotation::Cross => PickaxeRotation::Horizontal,
+                        };
+                        ToolType::Pickaxe { rotation }
+                    }
+                    _ => ToolType::Pickaxe { rotation: PickaxeRotation::Vertical },
+                };
+            }
+            _ => {}
+        }
+    }
+}
+
+fn update_mining_tile(mut q_mining_tiles: Query<(&mut Visibility, &mut TextureAtlasSprite, &MiningTile)>) {
+    for (mut vis, mut atlas_idx, tile) in q_mining_tiles.iter_mut() {
+        if tile.hp == 0 {
+            *vis = Visibility::Hidden;
+        } else {
+            atlas_idx.index = tile.hp - 1;
+        }
+    }
+}
+
+/// Helper: to find which atlas index to use for creating the border around the mineable tiles
 fn get_border_atlas_idx(x: i32, y: i32, grid: (i32, i32)) -> usize {
     if x < -1 || y < -1 || x > grid.0 || y > grid.1 {
         A_DARK_GROUND
@@ -155,77 +291,67 @@ fn get_border_atlas_idx(x: i32, y: i32, grid: (i32, i32)) -> usize {
     }
 }
 
-fn player_mouse_mine(
-    q_windows: Query<&Window, With<PrimaryWindow>>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    q_mining_grid: Query<&MiningGrid>,
-    mut ev_mine: EventWriter<MineAction>,
-    mouse: Res<Input<MouseButton>>,
-) {
-    if !mouse.just_pressed(MouseButton::Left) {
-        return;
+fn get_hit_stability(tool: &ToolType, _hits: &[TileHit]) -> u32 {
+    match tool {
+        ToolType::TinyHammer => 75,
+        ToolType::Pickaxe { rotation } => match rotation {
+            PickaxeRotation::Horizontal => 25,
+            PickaxeRotation::Vertical => 25,
+            PickaxeRotation::Cross => 45,
+        },
     }
-    let (cam, cam_trans) = q_camera.single();
-    let window = q_windows.single();
+}
 
-    if let Some(world_pos) = window
-        .cursor_position()
-        .and_then(|cursor| cam.viewport_to_world(cam_trans, cursor))
-        .map(|ray| ray.origin.truncate())
-    {
-        let tile_x = (world_pos.x / SPRITE_PX_X as f32).round() as i32;
-        let tile_y = (world_pos.y / SPRITE_PX_Y as f32).round() as i32;
-        println!("World coords: {}/{} Tile coords: {}/{}", world_pos.x, world_pos.y, tile_x, tile_y);
-
-        let grid = q_mining_grid.single();
-        if tile_x < 0 || tile_y < 0 || tile_x >= grid.width as i32 || tile_y >= grid.height as i32 {
-            warn!("Click was outside the mining grid.");
-            return;
-        }
-
-        let idx = xy_to_idx(tile_x as usize, tile_y as usize, grid.width);
-        match grid.rock_tiles.get(idx) {
-            Some(rock_tile) => {
-                if let Some(e) = rock_tile {
-                    ev_mine.send(MineAction(*e));
+// Helper: returns entity and how much damage dealt based on which tool is used
+fn get_tile_hits(tool: &ToolType, start_pos: &UPoint, grid: &MiningGrid) -> Vec<TileHit> {
+    match tool {
+        ToolType::TinyHammer => {
+            let start_idx = start_pos.as_idx(grid.width);
+            if let Some(maybe_rock) = grid.rock_tiles.get(start_idx) {
+                if let Some(rock) = maybe_rock {
+                    return vec![(TileHit { tile: *rock, damage: 1 })];
                 }
             }
-            None => {
-                warn!("Index was out of bounds.");
-                return;
-            }
+            return vec![];
         }
-    }
-}
+        ToolType::Pickaxe { rotation } => {
+            let mut hits = vec![];
+            let hit_spots = match rotation {
+                PickaxeRotation::Horizontal => {
+                    vec![
+                        *start_pos,
+                        UPoint::new(start_pos.x.saturating_sub(1), start_pos.y),
+                        UPoint::new(start_pos.x + 1, start_pos.y),
+                    ]
+                }
+                PickaxeRotation::Vertical => {
+                    vec![
+                        *start_pos,
+                        UPoint::new(start_pos.x, start_pos.y.saturating_sub(1)),
+                        UPoint::new(start_pos.x, start_pos.y + 1),
+                    ]
+                }
+                PickaxeRotation::Cross => {
+                    vec![
+                        *start_pos,
+                        UPoint::new(start_pos.x, start_pos.y.saturating_sub(1)),
+                        UPoint::new(start_pos.x, start_pos.y + 1),
+                        UPoint::new(start_pos.x.saturating_sub(1), start_pos.y),
+                        UPoint::new(start_pos.x + 1, start_pos.y),
+                    ]
+                }
+            };
 
-fn handle_mine_actions(
-    mut ev_mine: EventReader<MineAction>,
-    mut q_mining_tiles: Query<&mut MiningTile>,
-    mut ev_stability: EventWriter<StabilityDamage>,
-    mut ev_treasure_check: EventWriter<CheckTreasure>,
-) {
-    for ev in ev_mine.read() {
-        match q_mining_tiles.get_mut(ev.0) {
-            Ok(mut hit) => {
-                hit.hp = hit.hp.saturating_sub(1);
-                ev_treasure_check.send(CheckTreasure {});
-                ev_stability.send(StabilityDamage::new(1));
-                debug!("Tile was hit");
-            }
-            Err(_) => {
-                debug!("Entity did not have mining tile component.");
-                return;
-            }
-        };
-    }
-}
+            for spot in hit_spots {
+                let idx = spot.as_idx(grid.width);
 
-fn update_mining_tile(mut q_mining_tiles: Query<(&mut Visibility, &mut TextureAtlasSprite, &MiningTile)>) {
-    for (mut vis, mut atlas_idx, tile) in q_mining_tiles.iter_mut() {
-        if tile.hp == 0 {
-            *vis = Visibility::Hidden;
-        } else {
-            atlas_idx.index = tile.hp - 1;
+                if let Some(maybe_rock) = grid.rock_tiles.get(idx) {
+                    if let Some(rock) = maybe_rock {
+                        hits.push(TileHit { tile: *rock, damage: 1 });
+                    }
+                }
+            }
+            return hits;
         }
     }
 }

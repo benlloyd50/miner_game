@@ -2,7 +2,8 @@ mod expedition;
 
 use bevy::prelude::*;
 
-use crate::assets::FontAssets;
+use self::expedition::ExpeditionUIPlugin;
+use crate::assets::UiAssets;
 use crate::data_read::LEVEL_DB;
 use crate::expedition::{in_area_state, Area, LevelChange};
 use crate::AppState;
@@ -10,9 +11,10 @@ use crate::AppState;
 pub struct UIPlugins;
 impl Plugin for UIPlugins {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::AreaViewer { curr_area: Area::TheCaves }), setup)
+        app.add_systems(OnEnter(AppState::AreaViewer { curr_area: Area::TheCaves }), setup_areaviewer)
             .add_systems(Update, button_system.run_if(in_area_state))
-            .add_systems(OnExit(AppState::AreaViewer { curr_area: Area::TheCaves }), cleanup);
+            .add_systems(OnExit(AppState::AreaViewer { curr_area: Area::TheCaves }), cleanup)
+            .add_plugins(ExpeditionUIPlugin);
     }
 }
 
@@ -54,7 +56,7 @@ fn button_system(
 #[derive(Component)]
 pub struct StateUIMaster;
 
-fn setup(mut commands: Commands, fonts: Res<FontAssets>) {
+fn setup_areaviewer(mut commands: Commands, fonts: Res<UiAssets>) {
     debug!("setting up ui for area viewer");
     let Some(info) = LEVEL_DB.get() else {
         return;
