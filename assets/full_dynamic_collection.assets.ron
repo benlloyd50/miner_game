@@ -32,4 +32,7 @@
     "red_button": File (
         path: "leave_button.png",
     ),
+    "clear_menu": File (
+        path: "clear_menu.png",
+    ),
  })

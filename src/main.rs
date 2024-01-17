@@ -19,6 +19,7 @@ use data_read::{load_area_info_into_db, load_treasures_into_db};
 use expedition::{Area, ExpeditionPlugin};
 use mining::MiningPlugin;
 use stability::StabilityPlugin;
+use tools::ToolPlugin;
 use treasures::TreasurePlugin;
 use ui::UIPlugins;
 
@@ -46,6 +47,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
             CameraPlugin,
             MiningPlugin,
+            ToolPlugin,
             TreasurePlugin,
             AssetLoadPlugin,
             StabilityPlugin,
@@ -65,6 +67,7 @@ enum AppState {
         curr_area: Area,
     },
     Expedition,
+    ExpeditionFinish,
 }
 
 const SPRITE_PX_X: u32 = 16;

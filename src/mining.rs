@@ -11,6 +11,7 @@ use crate::consts::{
 use crate::expedition::{ExpeditionPersist, InitExpedition};
 use crate::point::{xy_to_idx, UPoint};
 use crate::stability::StabilityDamage;
+use crate::tools::{ActiveTool, PickaxeRotation, ToolType};
 use crate::treasures::CheckTreasure;
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
 
@@ -27,12 +28,10 @@ impl Plugin for MiningPlugin {
                 (
                     player_mouse_mine.before(handle_mine_actions),
                     handle_mine_actions,
-                    switch_tool,
                     update_mining_tile.after(handle_mine_actions),
                 )
                     .run_if(in_state(AppState::Expedition)),
             )
-            .init_resource::<ActiveTool>()
             .add_event::<MineAction>();
     }
 }
@@ -60,26 +59,6 @@ impl MiningTile {
         Self { hp }
     }
 }
-
-#[derive(Resource, Default)]
-pub struct ActiveTool(pub ToolType);
-
-#[derive(Default)]
-pub enum ToolType {
-    #[default]
-    TinyHammer,
-    Pickaxe {
-        rotation: PickaxeRotation,
-    },
-}
-
-#[derive(Copy, Clone)]
-pub enum PickaxeRotation {
-    Horizontal,
-    Vertical,
-    Cross,
-}
-
 struct TileHit {
     tile: Entity,
     damage: usize,
@@ -224,30 +203,6 @@ fn handle_mine_actions(
                     return;
                 }
             };
-        }
-    }
-}
-
-fn switch_tool(mut tool: ResMut<ActiveTool>, keeb: Res<Input<KeyCode>>) {
-    for just_pressed in keeb.get_just_pressed() {
-        match just_pressed {
-            KeyCode::Key1 => {
-                tool.0 = ToolType::TinyHammer;
-            }
-            KeyCode::Key2 => {
-                tool.0 = match tool.0 {
-                    ToolType::Pickaxe { rotation } => {
-                        let rotation = match rotation {
-                            PickaxeRotation::Horizontal => PickaxeRotation::Vertical,
-                            PickaxeRotation::Vertical => PickaxeRotation::Cross,
-                            PickaxeRotation::Cross => PickaxeRotation::Horizontal,
-                        };
-                        ToolType::Pickaxe { rotation }
-                    }
-                    _ => ToolType::Pickaxe { rotation: PickaxeRotation::Vertical },
-                };
-            }
-            _ => {}
         }
     }
 }

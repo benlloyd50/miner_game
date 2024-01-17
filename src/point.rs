@@ -22,7 +22,7 @@ pub fn xy_to_idx(x: usize, y: usize, width: usize) -> usize {
     x + y * width
 }
 
-pub struct IPoint {
+pub struct _IPoint {
     pub x: i32,
     pub y: i32,
 }

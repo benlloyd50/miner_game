@@ -1,15 +1,16 @@
 use bevy::log::{error, info};
 use bevy::prelude::{
     debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Plugin,
-    Query, Res, Transform, Update,
+    Query, Res, Resource, Transform, Update,
 };
 use bevy::sprite::{SpriteSheetBundle, TextureAtlasSprite};
+use bevy::utils::HashMap;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
 use crate::assets::SpriteAssets;
 use crate::data_read::{TreasureInfo, TREASURE_DB};
-use crate::expedition::{ExpeditionPersist, ExpeditionClear, InitExpedition};
+use crate::expedition::{ExpeditionClear, ExpeditionPersist, InitExpedition};
 use crate::mining::{MiningGrid, MiningTile};
 use crate::point::{idx_to_xy, xy_to_idx, UPoint};
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
@@ -34,10 +35,14 @@ pub struct Treasure {
 #[derive(Component)]
 pub struct TreasureTile;
 
-// #[derive(Component)]
-// pub struct TreasureHaul {
-//     treasures: Vec<usize>,
-// }
+#[derive(Resource)]
+pub struct TreasureTrove {
+    treasures: HashMap<u32, TreasureData>,
+}
+
+pub struct TreasureData {
+    times_collected: u32,
+}
 
 #[derive(Event)]
 pub struct CheckTreasure {}
@@ -125,6 +130,18 @@ fn init_treasures(mut commands: Commands, mut ev_init: EventReader<InitExpeditio
             grid.treasures[*treasure_idx] = Some(parent.id());
         }
     }
+}
+
+fn _collect_treasures(mut ev_expedtion_clear: EventReader<ExpeditionClear>, q_treasures: Query<&Treasure>) {
+    let Some(ec) = ev_expedtion_clear.read().next() else {
+        return;
+    };
+
+    if matches!(ec, ExpeditionClear::_CaveIn) {
+        return; // no treasure on a cave in
+    }
+
+    for _treasure in q_treasures.iter() {}
 }
 
 fn check_treasure_uncovered(

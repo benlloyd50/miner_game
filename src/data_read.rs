@@ -12,7 +12,7 @@ pub static TREASURE_DB: OnceLock<Vec<TreasureInfo>> = OnceLock::new();
 
 #[derive(Deserialize)]
 pub struct TreasureInfo {
-    pub id: usize,
+    pub id: u32,
     pub name: String,
     // a 1d array representing the shape and atlas indices of the treasure
     // -1 represents an empty cell

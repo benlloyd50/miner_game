@@ -36,6 +36,8 @@ pub struct UiAssets {
     pub level1fg: Handle<Image>,
     #[asset(key = "red_button")]
     pub leave_button: Handle<Image>,
+    #[asset(key = "clear_menu")]
+    pub clear_menu: Handle<Image>,
 
     #[asset(key = "kaph")]
     pub text: Handle<Font>,

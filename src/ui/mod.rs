@@ -28,13 +28,13 @@ struct ButtonLevelData {
 }
 
 fn button_system(
-    mut interaction_query: Query<
+    mut q_interaction: Query<
         (&Interaction, &mut BackgroundColor, &mut BorderColor, &ButtonLevelData),
         (Changed<Interaction>, With<Button>),
     >,
     mut ev: EventWriter<LevelChange>,
 ) {
-    for (interaction, mut color, mut border_color, bld) in &mut interaction_query {
+    for (interaction, mut color, mut border_color, bld) in &mut q_interaction {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
