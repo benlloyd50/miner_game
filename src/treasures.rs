@@ -1,19 +1,22 @@
-use bevy::log::{error, info};
-use bevy::prelude::{
-    debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Plugin,
-    Query, Res, Resource, Transform, Update,
+use bevy::{
+    log::{error, info},
+    prelude::{
+        debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter,
+        Plugin, Query, Res, Resource, Transform, Update,
+    },
+    sprite::{SpriteSheetBundle, TextureAtlasSprite},
+    utils::HashMap,
 };
-use bevy::sprite::{SpriteSheetBundle, TextureAtlasSprite};
-use bevy::utils::HashMap;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 
-use crate::assets::SpriteAssets;
-use crate::data_read::{TreasureInfo, TREASURE_DB};
-use crate::expedition::{ExpeditionClear, ExpeditionPersist, InitExpedition};
-use crate::mining::{MiningGrid, MiningTile};
-use crate::point::{idx_to_xy, xy_to_idx, UPoint};
-use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
+use crate::{
+    assets::SpriteAssets,
+    data_read::{TreasureInfo, TREASURE_DB},
+    expedition::{ExpeditionClear, ExpeditionPersist, InitExpedition},
+    mining::{MiningGrid, MiningTile},
+    point::{idx_to_xy, xy_to_idx, UPoint},
+    AppState, SPRITE_PX_X, SPRITE_PX_Y,
+};
 
 pub struct TreasurePlugin;
 
@@ -35,11 +38,14 @@ pub struct Treasure {
 #[derive(Component)]
 pub struct TreasureTile;
 
+// TODO: use these unused structs or get rid of them
 #[derive(Resource)]
+#[allow(unused)]
 pub struct TreasureTrove {
     treasures: HashMap<u32, TreasureData>,
 }
 
+#[allow(unused)]
 pub struct TreasureData {
     times_collected: u32,
 }

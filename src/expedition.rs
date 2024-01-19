@@ -1,15 +1,19 @@
 use std::fmt::Display;
 
-use bevy::log::{error, info, warn};
-use bevy::prelude::{
-    in_state, App, Commands, Component, DespawnRecursiveExt, Entity, Event, EventReader, EventWriter, Input,
-    IntoSystemConfigs, KeyCode, NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With,
+use bevy::{
+    log::{error, warn},
+    prelude::{
+        in_state, App, Commands, Component, DespawnRecursiveExt, Entity, Event, EventReader, EventWriter, Input,
+        IntoSystemConfigs, KeyCode, NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With,
+    },
 };
 
-use crate::camera::CameraUpdate;
-use crate::data_read::LEVEL_DB;
-use crate::stability::{LevelStability, Stability};
-use crate::AppState;
+use crate::{
+    camera::CameraUpdate,
+    data_read::LEVEL_DB,
+    stability::{LevelStability, Stability},
+    AppState,
+};
 
 pub struct ExpeditionPlugin;
 
@@ -21,7 +25,7 @@ impl Plugin for ExpeditionPlugin {
             .add_event::<ExpeditionFinish>()
             .add_systems(Update, (setup_expedition, stop_expedition).run_if(in_area_state))
             .add_systems(Update, (check_expedition_clear).run_if(in_state(AppState::Expedition)))
-            .add_systems(Update, (check_expedition_clear_finish).run_if(in_state(AppState::ExpeditionFinish)))
+            .add_systems(Update, (check_expedition_finish).run_if(in_state(AppState::ExpeditionFinish)))
             .add_systems(OnExit(AppState::ExpeditionFinish), cleanup_expedition);
 
         debug_assert!(debug_leave_expedition(app));
@@ -67,16 +71,11 @@ pub enum ExpeditionClear {
 }
 
 #[derive(Event)]
+// TODO: remove this as it was made as a hacky fix to another problem with button presses
 pub enum ExpeditionFinish {
     Finish,
     _Retry,
 }
-
-// Flow of events
-// In map view of levels, AppState::LevelViewer{ area }
-// 1. Player selects level, creates Level Change event
-// 2. LevelChange event is read and setups up components necessary for AppState::Expedition
-// 3. State is changed to Expedition
 
 #[derive(Event)]
 pub struct LevelChange {
@@ -91,18 +90,19 @@ fn setup_expedition(
     mut ev_cam_update: EventWriter<CameraUpdate>,
     mut stability: ResMut<Stability>,
 ) {
-    // only process 1 level change event in case two+ are created
+    // only process 1st level change
     let Some(ev) = ev_level_change.read().next() else {
         return;
     };
+
     // take area and level and get the level info from level DB
-    let Some(area_info) = LEVEL_DB.get() else {
+    let Some(level_db) = LEVEL_DB.get() else {
         error!("did not find the level db and it was not initialized");
         return;
     };
 
     // use level info to create generation events (mining grid, stability, treasures)
-    let Some(info) = area_info.get(&ev.area.to_string()) else {
+    let Some(info) = level_db.get(&ev.area.to_string()) else {
         warn!("No level found for {} in area {}", ev.level_idx, ev.area);
         return;
     };
@@ -111,7 +111,7 @@ fn setup_expedition(
     ev_init_mining_grid.send(InitExpedition { size_x: level.size.0, size_y: level.size.1 });
     ev_cam_update.send(CameraUpdate { width: level.size.0 as f32, height: level.size.1 as f32, scale: 2.0 });
     *stability = match level.stability {
-        LevelStability::Normal => Stability::new(10),
+        LevelStability::Normal => Stability::new(1000),
     };
 
     // switch state
@@ -120,7 +120,6 @@ fn setup_expedition(
 
 fn check_expedition_clear(
     mut ev_expedition_clear: EventReader<ExpeditionClear>,
-    mut ev_finish: EventReader<ExpeditionFinish>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     let Some(ec) = ev_expedition_clear.read().next() else {
@@ -128,17 +127,16 @@ fn check_expedition_clear(
     };
     match ec {
         ExpeditionClear::AllTreasure => {
+            next_state.set(AppState::ExpeditionFinish);
         }
         ExpeditionClear::AbandonSession => {
             next_state.set(AppState::ExpeditionFinish);
-            info!("leaving Expedition to go to ExpeditionFinish");
         }
-        ExpeditionClear::_CaveIn => {
-        },
+        ExpeditionClear::_CaveIn => {}
     }
 }
 
-fn check_expedition_clear_finish(
+fn check_expedition_finish(
     mut ev_expedition_finish: EventReader<ExpeditionFinish>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
@@ -149,11 +147,10 @@ fn check_expedition_clear_finish(
         ExpeditionFinish::Finish => {
             // TODO: update to switch back to the area that the player is currently in
             next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });
-            info!("leaving ExpeditionFinish to go to AreaViewer");
-        },
+        }
         ExpeditionFinish::_Retry => {
             todo!("add retry feature");
-        },
+        }
     }
 }
 

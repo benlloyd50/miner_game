@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 
-use crate::expedition::Area;
-use crate::AppState;
+use crate::{expedition::Area, AppState};
 
 pub struct AssetLoadPlugin;
 

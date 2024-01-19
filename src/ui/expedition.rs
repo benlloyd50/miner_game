@@ -1,12 +1,23 @@
 use bevy::prelude::*;
+use bevy_mod_picking::{
+    backend::prelude::Pickable,
+    events::{Down, Pointer},
+    prelude::On,
+};
 
-use crate::assets::UiAssets;
-use crate::expedition::{ExpeditionClear, ExpeditionPersist, ExpeditionFinish};
-use crate::tools::ToolUnlocks;
-use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
+use crate::{
+    assets::{SpriteAssets, UiAssets},
+    expedition::{ExpeditionClear, ExpeditionFinish, ExpeditionPersist},
+    tools::{ui_tool_is_tool_type, ActiveTool, SwitchTool, ToolUnlocks},
+    AppState, SystemOrder, SPRITE_PX_X, SPRITE_PX_Y,
+};
 
-// pub const TOOLBAR_TOOLS_Z: f32 = 71.0;
+pub const TOOLS_Z: f32 = 71.0;
 pub const TOOLBAR_Z: f32 = 70.0;
+// leave button colors
+const DARK_MAROON: Color = Color::rgb(122.0 / 255.0, 40.0 / 255.0, 73.0 / 255.0);
+const _RED: Color = Color::rgb(183.0 / 255.0, 65.0 / 255.0, 50.0 / 255.0);
+const LIGHT_RED: Color = Color::rgb(194.0 / 255.0, 55.0 / 255.0, 83.0 / 255.0);
 
 #[derive(Component)]
 pub struct ExpeditionClearMenu;
@@ -14,12 +25,25 @@ pub struct ExpeditionClearMenu;
 #[derive(Component)]
 pub struct LeaveButton;
 
+#[derive(Component, Copy, Clone)]
+pub enum UITool {
+    TinyHammer,
+    Pickaxe,
+}
+
 pub struct ExpeditionUIPlugin;
 
 impl Plugin for ExpeditionUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::Expedition), init_expedition_ui)
             .add_systems(Update, (expedition_buttons).run_if(in_either_expedition_state))
+            .add_systems(
+                Update,
+                (update_active_tool_sprite)
+                    .run_if(on_event::<SwitchTool>())
+                    .in_set(SystemOrder::Render)
+                    .after(SystemOrder::Logic),
+            )
             .add_systems(Update, (reveal_clear_menu).run_if(in_state(AppState::Expedition)));
     }
 }
@@ -31,19 +55,39 @@ fn in_either_expedition_state(app_state: Res<State<AppState>>) -> bool {
     }
 }
 
-fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unlocks: Res<ToolUnlocks>) {
-    info!("creating ui elements for expedition");
-    let tools_unlocked = tool_unlocks.get_total_unlocks();
-    // TODO 2 change the transform to be centered based on how many are unlocked
-    let y = -((3 * SPRITE_PX_Y) as f32);
-    for i in 0..tools_unlocked as u32 {
-        let x = ((i * 3) * SPRITE_PX_X) as f32 - (2 * SPRITE_PX_X) as f32;
+// TODO: maybe change the starting x position to be centered based on how many tools are unlocked
+fn init_expedition_ui(
+    mut commands: Commands,
+    ui_assets: Res<UiAssets>,
+    sprites: Res<SpriteAssets>,
+    tool_unlocks: Res<ToolUnlocks>,
+    active_tool: Res<ActiveTool>,
+) {
+    info!("SETUP: creating ui elements for expedition");
+    let tools_unlocked = tool_unlocks.get_tools_for_ui();
+    let bar_y = -((3 * SPRITE_PX_Y) as f32);
+    let tool_y = -((3 * SPRITE_PX_Y - SPRITE_PX_Y / 2) as f32);
+    for (i, tool) in tools_unlocked.iter().enumerate() {
+        let x = ((i as u32 * 3) * SPRITE_PX_X) as f32 - (2 * SPRITE_PX_X) as f32;
         commands.spawn((
             SpriteBundle {
-                transform: Transform::from_xyz(x, y, TOOLBAR_Z),
+                transform: Transform::from_xyz(x, bar_y, TOOLBAR_Z),
                 texture: ui_assets.tool_shadow.clone(),
                 ..default()
             },
+            ExpeditionPersist,
+        ));
+
+        let tool_atlas_idx = if ui_tool_is_tool_type(tool, &active_tool.0) { i + 8 } else { i };
+        commands.spawn((
+            SpriteSheetBundle {
+                transform: Transform::from_xyz(x, tool_y, TOOLS_Z),
+                sprite: TextureAtlasSprite::new(tool_atlas_idx),
+                texture_atlas: sprites.tools.clone(),
+                ..default()
+            },
+            On::<Pointer<Down>>::send_event::<SwitchTool>(),
+            *tool,
             ExpeditionPersist,
         ));
     }
@@ -55,6 +99,7 @@ fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unl
             z_index: ZIndex::Global(2),
             ..Default::default()
         },
+        Pickable::IGNORE,
         ExpeditionPersist,
     ));
 
@@ -80,7 +125,7 @@ fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unl
                 ..default()
             },
             ExpeditionPersist,
-            LeaveButton
+            LeaveButton,
         ))
         .with_children(|parent| {
             parent.spawn(TextBundle {
@@ -90,7 +135,7 @@ fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unl
         });
 
     let cleared_style =
-        TextStyle { font: ui_assets.text.clone(), font_size: 32.0, color: Color::rgb_u8(255, 241, 169), ..default() };
+        TextStyle { font: ui_assets.text.clone(), font_size: 28.0, color: Color::rgb_u8(255, 241, 169) };
     commands
         .spawn((
             ImageBundle {
@@ -100,7 +145,8 @@ fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unl
                     position_type: PositionType::Absolute,
                     top: Val::Px(85.0),
                     left: Val::Percent(25.0),
-                    align_items: AlignItems::Center,
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
                     ..Default::default()
                 },
                 visibility: Visibility::Hidden,
@@ -111,16 +157,45 @@ fn init_expedition_ui(mut commands: Commands, ui_assets: Res<UiAssets>, tool_unl
             ExpeditionPersist,
         ))
         .with_children(|parent| {
-            parent.spawn(
-                TextBundle::from_section("Expedition Cleared!", cleared_style)
-                    .with_text_alignment(TextAlignment::Center),
-            );
+            parent.spawn(TextBundle {
+                style: Style {
+                    margin: UiRect::new(Val::Percent(10.0), Val::ZERO, Val::Percent(10.0), Val::ZERO),
+                    ..default()
+                },
+                text: Text::from_section("Expedition Cleared!", cleared_style.clone()),
+                ..default()
+            });
+
+            parent.spawn(TextBundle {
+                style: Style {
+                    margin: UiRect::new(Val::Percent(10.0), Val::ZERO, Val::Percent(10.0), Val::ZERO),
+                    ..default()
+                },
+                text: Text::from_section("Total Treasures Found ##", cleared_style.clone()),
+                ..default()
+            });
         });
 }
 
-const DARK_MAROON: Color = Color::rgb(122.0 / 255.0, 40.0 / 255.0, 73.0 / 255.0);
-// const RED: Color = Color::rgb(183.0 / 255.0, 65.0 / 255.0, 50.0 / 255.0);
-const LIGHT_RED: Color = Color::rgb(194.0 / 255.0, 55.0 / 255.0, 83.0 / 255.0);
+fn update_active_tool_sprite(mut q_ui_tools: Query<(&mut TextureAtlasSprite, &UITool)>, active_tool: Res<ActiveTool>) {
+    // NOTE: this 8 relates to the columns in the tools tilesheets, by addding
+    // the width we get the idx of the highlighted variant of the tool sprite
+    for (mut ui_tool_sprite, ui_tool) in q_ui_tools.iter_mut() {
+        let old_idx = ui_tool_sprite.index;
+        if ui_tool_is_tool_type(ui_tool, &active_tool.0) {
+            if old_idx >= 8 {
+                // the sprite was already active
+                continue;
+            }
+            ui_tool_sprite.index = old_idx + 8;
+        } else {
+            // set back to original index if it was active prior
+            if old_idx >= 8 {
+                ui_tool_sprite.index -= 8;
+            }
+        }
+    }
+}
 
 fn expedition_buttons(
     mut q_interaction: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<LeaveButton>)>,
@@ -139,8 +214,10 @@ fn expedition_buttons(
                     AppState::ExpeditionFinish => {
                         ev_finish.send(ExpeditionFinish::Finish);
                         info!("sent a Finish");
-                    },
-                    _ => { unreachable!("expedition_buttons should not be ran in this state");}
+                    }
+                    _ => {
+                        unreachable!("expedition_buttons should not be ran in this state");
+                    }
                 }
                 bg_color.0 = DARK_MAROON;
             }
@@ -158,7 +235,7 @@ fn reveal_clear_menu(
     mut ev_expedition_clear: EventReader<ExpeditionClear>,
     mut q_clear_menu: Query<&mut Visibility, With<ExpeditionClearMenu>>,
 ) {
-        let Some(_ec) = ev_expedition_clear.read().next() else {
+    let Some(_ec) = ev_expedition_clear.read().next() else {
         return;
     };
     let mut clear_menu = q_clear_menu.single_mut();

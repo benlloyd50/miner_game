@@ -1,5 +1,4 @@
-use bevy::prelude::*;
-use bevy::render::camera::ScalingMode;
+use bevy::{prelude::*, render::camera::ScalingMode};
 
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
 
@@ -35,6 +34,7 @@ fn init_camera(mut commands: Commands) {
         },
         MainCamera,
     ));
+    debug!("debugging in the camera");
 }
 
 fn update_camera_for_expedition(

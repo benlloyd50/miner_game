@@ -9,6 +9,8 @@ edition = "2021"
 # dynamic_linking must be disabled before releasing
 bevy = {version = "0.12", features = ["file_watcher", "dynamic_linking",]}
 bevy_asset_loader = {version="0.19", features = ["standard_dynamic_assets", "2d"]}
+bevy_mod_picking = "0.17.0"
+
 rand = "0.8.5"
 
 serde = {version="1.0", features = ["derive"]}

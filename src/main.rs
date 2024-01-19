@@ -11,9 +11,12 @@ mod treasures;
 mod ui;
 
 use assets::AssetLoadPlugin;
-use bevy::log::LogPlugin;
-use bevy::prelude::*;
-use bevy::window::{WindowMode, WindowResolution};
+use bevy::{
+    log::LogPlugin,
+    prelude::*,
+    window::{WindowMode, WindowResolution},
+};
+use bevy_mod_picking::DefaultPickingPlugins;
 use camera::CameraPlugin;
 use data_read::{load_area_info_into_db, load_treasures_into_db};
 use expedition::{Area, ExpeditionPlugin};
@@ -45,6 +48,7 @@ fn main() {
                     level: bevy::log::Level::DEBUG,
                 })
                 .set(ImagePlugin::default_nearest()),
+            DefaultPickingPlugins,
             CameraPlugin,
             MiningPlugin,
             ToolPlugin,
@@ -68,6 +72,13 @@ enum AppState {
     },
     Expedition,
     ExpeditionFinish,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, SystemSet)]
+enum SystemOrder {
+    _Input, // anything to do with getting input from the player
+    Logic,  // anything to do with changing state
+    Render, // anything to do with drawing state
 }
 
 const SPRITE_PX_X: u32 = 16;

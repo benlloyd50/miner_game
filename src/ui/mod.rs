@@ -3,10 +3,16 @@ mod expedition;
 use bevy::prelude::*;
 
 use self::expedition::ExpeditionUIPlugin;
-use crate::assets::UiAssets;
-use crate::data_read::LEVEL_DB;
-use crate::expedition::{in_area_state, Area, LevelChange};
-use crate::AppState;
+use crate::{
+    assets::UiAssets,
+    data_read::LEVEL_DB,
+    expedition::{in_area_state, Area, LevelChange},
+    AppState,
+};
+
+pub mod prelude {
+    pub use crate::ui::expedition::UITool;
+}
 
 pub struct UIPlugins;
 impl Plugin for UIPlugins {
@@ -85,8 +91,8 @@ fn setup_areaviewer(mut commands: Commands, fonts: Res<UiAssets>) {
                     .spawn((
                         ButtonBundle {
                             style: Style {
-                                width: Val::Px(200.0),
-                                height: Val::Auto,
+                                width: Val::Auto,
+                                height: Val::Percent(15.0),
                                 border: UiRect::all(Val::Px(5.0)),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,

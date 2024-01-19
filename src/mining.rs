@@ -1,19 +1,20 @@
-use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::{prelude::*, utils::HashSet, window::PrimaryWindow};
 use rand::Rng;
 
-use crate::assets::SpriteAssets;
-use crate::camera::MainCamera;
-use crate::consts::{
-    A_BORDER_BOTTOM, A_BORDER_LEFT, A_BORDER_RIGHT, A_BORDER_TOP, A_CORNER_BL, A_CORNER_BR, A_CORNER_TL, A_CORNER_TR,
-    A_DARK_GROUND,
+use crate::{
+    assets::SpriteAssets,
+    camera::MainCamera,
+    consts::{
+        A_BORDER_BOTTOM, A_BORDER_LEFT, A_BORDER_RIGHT, A_BORDER_TOP, A_CORNER_BL, A_CORNER_BR, A_CORNER_TL,
+        A_CORNER_TR, A_DARK_GROUND,
+    },
+    expedition::{ExpeditionPersist, InitExpedition},
+    point::{xy_to_idx, UPoint},
+    stability::StabilityDamage,
+    tools::{ActiveTool, PickaxeRotation, ToolType},
+    treasures::CheckTreasure,
+    AppState, SPRITE_PX_X, SPRITE_PX_Y,
 };
-use crate::expedition::{ExpeditionPersist, InitExpedition};
-use crate::point::{xy_to_idx, UPoint};
-use crate::stability::StabilityDamage;
-use crate::tools::{ActiveTool, PickaxeRotation, ToolType};
-use crate::treasures::CheckTreasure;
-use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
 
 const BREAKABLE_Z: f32 = 30.0;
 const BACKGROUND_Z: f32 = 1.0;
@@ -70,12 +71,7 @@ struct MineAction {
     tile_y: u32,
 }
 
-fn init_mining_grid(
-    mut commands: Commands,
-    mut ev_init: EventReader<InitExpedition>,
-    sprites: Res<SpriteAssets>,
-    mut tool: ResMut<ActiveTool>,
-) {
+fn init_mining_grid(mut commands: Commands, mut ev_init: EventReader<InitExpedition>, sprites: Res<SpriteAssets>) {
     let Some(new_grid) = ev_init.read().next() else {
         info!("entering expedition state, no event to create mining grid");
         return;
@@ -115,8 +111,6 @@ fn init_mining_grid(
         }
     }
 
-    // update the hammer as the starting tool
-    tool.0 = ToolType::TinyHammer;
     commands.spawn((grid, ExpeditionPersist));
     info!("created mining grid");
 
@@ -296,6 +290,10 @@ fn get_tile_hits(tool: &ToolType, start_pos: &UPoint, grid: &MiningGrid) -> Vec<
                     ]
                 }
             };
+            let hit_spots = hit_spots
+                .into_iter()
+                .filter(|spot| !(spot.x < grid.width && spot.y < grid.height))
+                .collect::<HashSet<_>>();
 
             for spot in hit_spots {
                 let idx = spot.as_idx(grid.width);

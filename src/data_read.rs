@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-use std::fs;
-use std::sync::OnceLock;
+use std::{collections::HashMap, fs, sync::OnceLock};
 
 use json5;
 use serde::Deserialize;
