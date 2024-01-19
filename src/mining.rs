@@ -292,7 +292,7 @@ fn get_tile_hits(tool: &ToolType, start_pos: &UPoint, grid: &MiningGrid) -> Vec<
             };
             let hit_spots = hit_spots
                 .into_iter()
-                .filter(|spot| !(spot.x < grid.width && spot.y < grid.height))
+                .filter(|spot| spot.x < grid.width && spot.y < grid.height)
                 .collect::<HashSet<_>>();
 
             for spot in hit_spots {
