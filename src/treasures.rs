@@ -9,7 +9,7 @@ use rand::{seq::SliceRandom, Rng};
 use crate::{
     assets::SpriteAssets,
     data_read::{TreasureInfo, TREASURE_DB},
-    expedition::{ExpeditionPersist, InitExpedition, ExpeditionStatus},
+    expedition::{ExpeditionPersist, ExpeditionStatus, InitExpedition},
     mining::{MiningGrid, MiningTile},
     point::{idx_to_xy, xy_to_idx, UPoint},
     AppState, SPRITE_PX_X, SPRITE_PX_Y,
@@ -20,7 +20,10 @@ pub struct TreasurePlugin;
 impl Plugin for TreasurePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(OnEnter(AppState::Expedition), init_treasures)
-            .add_systems(Update, (check_treasure_uncovered,).run_if(in_state(AppState::Expedition)).run_if(on_event::<CheckTreasure>()))
+            .add_systems(
+                Update,
+                (check_treasure_uncovered,).run_if(in_state(AppState::Expedition)).run_if(on_event::<CheckTreasure>()),
+            )
             .add_event::<CheckTreasure>();
     }
 }

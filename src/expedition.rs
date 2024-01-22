@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use bevy::{
     log::{error, warn},
-    prelude::*
+    prelude::*,
 };
 
 use crate::{
@@ -21,7 +21,10 @@ impl Plugin for ExpeditionPlugin {
             .add_event::<ExpeditionLeave>()
             .init_resource::<ExpeditionStatus>()
             .add_systems(Update, (setup_expedition, stop_expedition).run_if(in_area_state))
-            .add_systems(Update, (handle_leave_button).run_if(in_state(AppState::Expedition)).run_if(on_event::<ExpeditionLeave>()))
+            .add_systems(
+                Update,
+                (handle_leave_button).run_if(in_state(AppState::Expedition)).run_if(on_event::<ExpeditionLeave>()),
+            )
             .add_systems(Update, (leave_expedition).run_if(in_state(AppState::Expedition)))
             .add_systems(OnExit(AppState::Expedition), cleanup_expedition);
 
@@ -70,7 +73,6 @@ pub struct InitExpedition {
 /// Marks an entity as something that persists only for the lifetime of the current expedition
 #[derive(Component)]
 pub struct ExpeditionPersist;
-
 
 #[derive(Event)]
 pub struct LevelChange {
@@ -121,10 +123,7 @@ fn cleanup_expedition(mut commands: Commands, q_expedition_entities: Query<Entit
     }
 }
 
-fn leave_expedition(
-    expedition_status: ResMut<ExpeditionStatus>,
-    mut next_state: ResMut<NextState<AppState>>,
-    ) {
+fn leave_expedition(expedition_status: ResMut<ExpeditionStatus>, mut next_state: ResMut<NextState<AppState>>) {
     if expedition_status.is_changed() && matches!(*expedition_status, ExpeditionStatus::Leaving) {
         // TODO: update to switch back to the area that the player is currently in
         next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });
@@ -138,19 +137,17 @@ fn debug_leave_expedition(app: &mut App) -> bool {
 }
 
 /// Forcibly stops the expedition
-fn stop_expedition( mut expedition_status: ResMut<ExpeditionStatus>, keeb: Res<Input<KeyCode>>) {
+fn stop_expedition(mut expedition_status: ResMut<ExpeditionStatus>, keeb: Res<Input<KeyCode>>) {
     if !keeb.just_pressed(KeyCode::Back) {
         return;
     }
     *expedition_status = ExpeditionStatus::Leaving;
 }
 
-fn handle_leave_button(
-    mut expedition_status: ResMut<ExpeditionStatus>,
-    ) {
+fn handle_leave_button(mut expedition_status: ResMut<ExpeditionStatus>) {
     *expedition_status = match *expedition_status {
         ExpeditionStatus::Mining => ExpeditionStatus::Cleared,
         ExpeditionStatus::Cleared => ExpeditionStatus::Leaving,
-        ExpeditionStatus::Leaving => unreachable!("shouldn't hit since we would be out of this state then")
+        ExpeditionStatus::Leaving => unreachable!("shouldn't hit since we would be out of this state then"),
     };
 }

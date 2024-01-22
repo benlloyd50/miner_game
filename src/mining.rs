@@ -8,7 +8,7 @@ use crate::{
         A_BORDER_BOTTOM, A_BORDER_LEFT, A_BORDER_RIGHT, A_BORDER_TOP, A_CORNER_BL, A_CORNER_BR, A_CORNER_TL,
         A_CORNER_TR, A_DARK_GROUND,
     },
-    expedition::{ExpeditionPersist, InitExpedition, ExpeditionStatus},
+    expedition::{ExpeditionPersist, ExpeditionStatus, InitExpedition},
     point::{xy_to_idx, UPoint},
     stability::StabilityDamage,
     tools::{ActiveTool, PickaxeRotation, ToolType},
