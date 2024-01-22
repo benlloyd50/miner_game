@@ -38,6 +38,11 @@ pub struct UiAssets {
     #[asset(key = "clear_menu")]
     pub clear_menu: Handle<Image>,
 
+    #[asset(key = "stability")]
+    pub stability_bar: Handle<Image>,
+    #[asset(key = "stability_full")]
+    pub stability_bar_full: Handle<Image>,
+
     #[asset(key = "kaph")]
     pub text: Handle<Font>,
 }

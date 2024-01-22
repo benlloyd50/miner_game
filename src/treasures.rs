@@ -1,9 +1,6 @@
 use bevy::{
     log::{error, info},
-    prelude::{
-        debug, in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter,
-        Plugin, Query, Res, Resource, Transform, Update,
-    },
+    prelude::*,
     sprite::{SpriteSheetBundle, TextureAtlasSprite},
     utils::HashMap,
 };
@@ -12,7 +9,7 @@ use rand::{seq::SliceRandom, Rng};
 use crate::{
     assets::SpriteAssets,
     data_read::{TreasureInfo, TREASURE_DB},
-    expedition::{ExpeditionClear, ExpeditionPersist, InitExpedition},
+    expedition::{ExpeditionPersist, InitExpedition, ExpeditionStatus},
     mining::{MiningGrid, MiningTile},
     point::{idx_to_xy, xy_to_idx, UPoint},
     AppState, SPRITE_PX_X, SPRITE_PX_Y,
@@ -23,7 +20,7 @@ pub struct TreasurePlugin;
 impl Plugin for TreasurePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(OnEnter(AppState::Expedition), init_treasures)
-            .add_systems(Update, (check_treasure_uncovered,).run_if(in_state(AppState::Expedition)))
+            .add_systems(Update, (check_treasure_uncovered,).run_if(in_state(AppState::Expedition)).run_if(on_event::<CheckTreasure>()))
             .add_event::<CheckTreasure>();
     }
 }
@@ -83,7 +80,7 @@ fn init_treasures(mut commands: Commands, mut ev_init: EventReader<InitExpeditio
     };
 
     let mut total_treasures = 0;
-    while total_treasures < 5 {
+    while total_treasures < 1 {
         // pick position
         let left_x = rng.gen_range(0..grid.width);
         let bottom_y = rng.gen_range(0..grid.height);
@@ -138,30 +135,16 @@ fn init_treasures(mut commands: Commands, mut ev_init: EventReader<InitExpeditio
     }
 }
 
-fn _collect_treasures(mut ev_expedtion_clear: EventReader<ExpeditionClear>, q_treasures: Query<&Treasure>) {
-    let Some(ec) = ev_expedtion_clear.read().next() else {
-        return;
-    };
-
-    if matches!(ec, ExpeditionClear::_CaveIn) {
-        return; // no treasure on a cave in
-    }
-
-    for _treasure in q_treasures.iter() {}
-}
-
 fn check_treasure_uncovered(
-    mut ev_treasure_check: EventReader<CheckTreasure>,
-    mut ev_expedtion_clear: EventWriter<ExpeditionClear>,
+    mut expedition_status: ResMut<ExpeditionStatus>,
     mut q_treasures: Query<&mut Treasure>,
     q_mining_grid: Query<&MiningGrid>,
     q_mining_tiles: Query<&MiningTile>,
 ) {
+    if matches!(*expedition_status, ExpeditionStatus::Cleared) {
+        return;
+    }
     let active_grid = q_mining_grid.single();
-
-    let Some(_) = ev_treasure_check.read().next() else {
-        return; // there's no event to check this
-    };
 
     let mut discovered_amt = vec![];
     for mut treasure in q_treasures.iter_mut() {
@@ -189,7 +172,7 @@ fn check_treasure_uncovered(
 
     if !discovered_amt.contains(&false) {
         info!("All treasures were discovered");
-        ev_expedtion_clear.send(ExpeditionClear::AllTreasure);
+        *expedition_status = ExpeditionStatus::Cleared;
     }
 }
 

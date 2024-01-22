@@ -17,7 +17,7 @@ impl Plugin for StabilityPlugin {
 /// Reach 0 and enter chaos cave mode
 #[derive(Resource)]
 pub struct Stability {
-    remaining: i32,
+    pub remaining: i32,
 }
 
 impl Stability {

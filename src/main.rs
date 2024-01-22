@@ -37,6 +37,7 @@ fn main() {
                     primary_window: Some(Window {
                         mode: WindowMode::Windowed,
                         resolution: WindowResolution::new(1280.0, 720.0),
+                        // resolution: WindowResolution::new(1920.0, 1080.0),
                         title: "Underground Miner".to_string(),
                         resizable: false,
                         ..Default::default()
@@ -67,11 +68,11 @@ fn main() {
 enum AppState {
     #[default]
     AssetLoading,
+    // TODO: change area to resource type
     AreaViewer {
         curr_area: Area,
     },
     Expedition,
-    ExpeditionFinish,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, SystemSet)]

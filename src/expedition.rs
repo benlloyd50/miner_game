@@ -2,10 +2,7 @@ use std::fmt::Display;
 
 use bevy::{
     log::{error, warn},
-    prelude::{
-        in_state, App, Commands, Component, DespawnRecursiveExt, Entity, Event, EventReader, EventWriter, Input,
-        IntoSystemConfigs, KeyCode, NextState, OnExit, Plugin, Query, Res, ResMut, State, Update, With,
-    },
+    prelude::*
 };
 
 use crate::{
@@ -21,12 +18,12 @@ impl Plugin for ExpeditionPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<LevelChange>()
             .add_event::<InitExpedition>()
-            .add_event::<ExpeditionClear>()
-            .add_event::<ExpeditionFinish>()
+            .add_event::<ExpeditionLeave>()
+            .init_resource::<ExpeditionStatus>()
             .add_systems(Update, (setup_expedition, stop_expedition).run_if(in_area_state))
-            .add_systems(Update, (check_expedition_clear).run_if(in_state(AppState::Expedition)))
-            .add_systems(Update, (check_expedition_finish).run_if(in_state(AppState::ExpeditionFinish)))
-            .add_systems(OnExit(AppState::ExpeditionFinish), cleanup_expedition);
+            .add_systems(Update, (handle_leave_button).run_if(in_state(AppState::Expedition)).run_if(on_event::<ExpeditionLeave>()))
+            .add_systems(Update, (leave_expedition).run_if(in_state(AppState::Expedition)))
+            .add_systems(OnExit(AppState::Expedition), cleanup_expedition);
 
         debug_assert!(debug_leave_expedition(app));
     }
@@ -35,6 +32,17 @@ impl Plugin for ExpeditionPlugin {
 pub fn in_area_state(app_state: Res<State<AppState>>) -> bool {
     matches!(app_state.to_owned(), AppState::AreaViewer { .. })
 }
+
+#[derive(Resource, Default)]
+pub enum ExpeditionStatus {
+    #[default]
+    Mining,
+    Cleared,
+    Leaving,
+}
+
+#[derive(Event, Default)]
+pub struct ExpeditionLeave {}
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 #[allow(unused)]
@@ -63,19 +71,6 @@ pub struct InitExpedition {
 #[derive(Component)]
 pub struct ExpeditionPersist;
 
-#[derive(Event)]
-pub enum ExpeditionClear {
-    AllTreasure,
-    AbandonSession,
-    _CaveIn,
-}
-
-#[derive(Event)]
-// TODO: remove this as it was made as a hacky fix to another problem with button presses
-pub enum ExpeditionFinish {
-    Finish,
-    _Retry,
-}
 
 #[derive(Event)]
 pub struct LevelChange {
@@ -89,6 +84,7 @@ fn setup_expedition(
     mut ev_init_mining_grid: EventWriter<InitExpedition>,
     mut ev_cam_update: EventWriter<CameraUpdate>,
     mut stability: ResMut<Stability>,
+    mut expedition_status: ResMut<ExpeditionStatus>,
 ) {
     // only process 1st level change
     let Some(ev) = ev_level_change.read().next() else {
@@ -111,47 +107,12 @@ fn setup_expedition(
     ev_init_mining_grid.send(InitExpedition { size_x: level.size.0, size_y: level.size.1 });
     ev_cam_update.send(CameraUpdate { width: level.size.0 as f32, height: level.size.1 as f32, scale: 2.0 });
     *stability = match level.stability {
-        LevelStability::Normal => Stability::new(1000),
+        LevelStability::Normal => Stability::new(10000),
     };
+    *expedition_status = ExpeditionStatus::Mining;
 
     // switch state
-    next_state.set(AppState::Expedition)
-}
-
-fn check_expedition_clear(
-    mut ev_expedition_clear: EventReader<ExpeditionClear>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    let Some(ec) = ev_expedition_clear.read().next() else {
-        return;
-    };
-    match ec {
-        ExpeditionClear::AllTreasure => {
-            next_state.set(AppState::ExpeditionFinish);
-        }
-        ExpeditionClear::AbandonSession => {
-            next_state.set(AppState::ExpeditionFinish);
-        }
-        ExpeditionClear::_CaveIn => {}
-    }
-}
-
-fn check_expedition_finish(
-    mut ev_expedition_finish: EventReader<ExpeditionFinish>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    let Some(ec) = ev_expedition_finish.read().next() else {
-        return;
-    };
-    match ec {
-        ExpeditionFinish::Finish => {
-            // TODO: update to switch back to the area that the player is currently in
-            next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });
-        }
-        ExpeditionFinish::_Retry => {
-            todo!("add retry feature");
-        }
-    }
+    next_state.set(AppState::Expedition);
 }
 
 fn cleanup_expedition(mut commands: Commands, q_expedition_entities: Query<Entity, With<ExpeditionPersist>>) {
@@ -160,15 +121,36 @@ fn cleanup_expedition(mut commands: Commands, q_expedition_entities: Query<Entit
     }
 }
 
+fn leave_expedition(
+    expedition_status: ResMut<ExpeditionStatus>,
+    mut next_state: ResMut<NextState<AppState>>,
+    ) {
+    if expedition_status.is_changed() && matches!(*expedition_status, ExpeditionStatus::Leaving) {
+        // TODO: update to switch back to the area that the player is currently in
+        next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });
+    }
+}
+
+/// Adds `BackSpace` key as an option to leave the expedition early
 fn debug_leave_expedition(app: &mut App) -> bool {
     app.add_systems(Update, (stop_expedition).run_if(in_state(AppState::Expedition)));
     true
 }
 
-fn stop_expedition(mut next_state: ResMut<NextState<AppState>>, keeb: Res<Input<KeyCode>>) {
+/// Forcibly stops the expedition
+fn stop_expedition( mut expedition_status: ResMut<ExpeditionStatus>, keeb: Res<Input<KeyCode>>) {
     if !keeb.just_pressed(KeyCode::Back) {
         return;
     }
-    // TODO: update to switch back to the area that the player is currently in
-    next_state.set(AppState::AreaViewer { curr_area: crate::expedition::Area::TheCaves });
+    *expedition_status = ExpeditionStatus::Leaving;
+}
+
+fn handle_leave_button(
+    mut expedition_status: ResMut<ExpeditionStatus>,
+    ) {
+    *expedition_status = match *expedition_status {
+        ExpeditionStatus::Mining => ExpeditionStatus::Cleared,
+        ExpeditionStatus::Cleared => ExpeditionStatus::Leaving,
+        ExpeditionStatus::Leaving => unreachable!("shouldn't hit since we would be out of this state then")
+    };
 }

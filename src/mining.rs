@@ -8,7 +8,7 @@ use crate::{
         A_BORDER_BOTTOM, A_BORDER_LEFT, A_BORDER_RIGHT, A_BORDER_TOP, A_CORNER_BL, A_CORNER_BR, A_CORNER_TL,
         A_CORNER_TR, A_DARK_GROUND,
     },
-    expedition::{ExpeditionPersist, InitExpedition},
+    expedition::{ExpeditionPersist, InitExpedition, ExpeditionStatus},
     point::{xy_to_idx, UPoint},
     stability::StabilityDamage,
     tools::{ActiveTool, PickaxeRotation, ToolType},
@@ -177,7 +177,15 @@ fn handle_mine_actions(
     mut ev_treasure_check: EventWriter<CheckTreasure>,
     q_mining_grid: Query<&MiningGrid>,
     tool: Res<ActiveTool>,
+    expedition_status: Res<ExpeditionStatus>,
 ) {
+    match *expedition_status {
+        ExpeditionStatus::Cleared | ExpeditionStatus::Leaving => {
+            return; // cant mine after the expedition is finished
+        }
+        ExpeditionStatus::Mining => {}
+    }
+
     let grid = q_mining_grid.single();
     for ev in ev_mine.read() {
         let start = UPoint::new(ev.tile_x as usize, ev.tile_y as usize);

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{core_pipeline::bloom::BloomSettings, prelude::*, render::camera::ScalingMode};
 
 use crate::{AppState, SPRITE_PX_X, SPRITE_PX_Y};
 
@@ -30,9 +30,11 @@ fn init_camera(mut commands: Commands) {
             transform: Transform::from_xyz(0.0, 0.0, CAMERA_Z),
             projection: OrthographicProjection { scaling_mode: ScalingMode::WindowSize(2.0), ..default() },
             camera: Camera { hdr: true, ..default() },
+            // tonemapping: Tonemapping::AgX,
             ..default()
         },
         MainCamera,
+        BloomSettings::NATURAL,
     ));
     debug!("debugging in the camera");
 }

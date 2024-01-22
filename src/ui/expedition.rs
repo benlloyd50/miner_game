@@ -7,7 +7,8 @@ use bevy_mod_picking::{
 
 use crate::{
     assets::{SpriteAssets, UiAssets},
-    expedition::{ExpeditionClear, ExpeditionFinish, ExpeditionPersist},
+    expedition::{ExpeditionLeave, ExpeditionPersist, ExpeditionStatus},
+    stability::{Stability, StabilityDamage},
     tools::{ui_tool_is_tool_type, ActiveTool, SwitchTool, ToolUnlocks},
     AppState, SystemOrder, SPRITE_PX_X, SPRITE_PX_Y,
 };
@@ -25,6 +26,9 @@ pub struct ExpeditionClearMenu;
 #[derive(Component)]
 pub struct LeaveButton;
 
+#[derive(Component)]
+pub struct StabilityText;
+
 #[derive(Component, Copy, Clone)]
 pub enum UITool {
     TinyHammer,
@@ -36,7 +40,14 @@ pub struct ExpeditionUIPlugin;
 impl Plugin for ExpeditionUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::Expedition), init_expedition_ui)
-            .add_systems(Update, (expedition_buttons).run_if(in_either_expedition_state))
+            .add_systems(Update, (expedition_buttons).run_if(in_state(AppState::Expedition)))
+            .add_systems(
+                Update,
+                (update_stability_text)
+                    .run_if(on_event::<StabilityDamage>())
+                    .in_set(SystemOrder::Render)
+                    .after(SystemOrder::Logic),
+            )
             .add_systems(
                 Update,
                 (update_active_tool_sprite)
@@ -45,13 +56,6 @@ impl Plugin for ExpeditionUIPlugin {
                     .after(SystemOrder::Logic),
             )
             .add_systems(Update, (reveal_clear_menu).run_if(in_state(AppState::Expedition)));
-    }
-}
-
-fn in_either_expedition_state(app_state: Res<State<AppState>>) -> bool {
-    match app_state.to_owned() {
-        AppState::ExpeditionFinish | AppState::Expedition => true,
-        _ => false,
     }
 }
 
@@ -92,6 +96,7 @@ fn init_expedition_ui(
         ));
     }
 
+    // Level Foreground fg
     commands.spawn((
         ImageBundle {
             style: Style { width: Val::Percent(100.0), height: Val::Percent(100.0), ..Default::default() },
@@ -133,6 +138,26 @@ fn init_expedition_ui(
                 ..default()
             });
         });
+
+    // DEBUG - stability text
+    commands.spawn((
+        TextBundle {
+            text: Text::from_sections([
+                TextSection::new(
+                    "Stability: ",
+                    TextStyle { font: ui_assets.text.clone(), font_size: 22.0, color: Color::rgb_u8(240, 10, 240) },
+                ),
+                TextSection::new(
+                    "",
+                    TextStyle { font: ui_assets.text.clone(), font_size: 22.0, color: Color::rgb_u8(255, 255, 255) },
+                ),
+            ]),
+            z_index: ZIndex::Global(3),
+            ..default()
+        },
+        StabilityText,
+        ExpeditionPersist,
+    ));
 
     let cleared_style =
         TextStyle { font: ui_assets.text.clone(), font_size: 28.0, color: Color::rgb_u8(255, 241, 169) };
@@ -198,27 +223,13 @@ fn update_active_tool_sprite(mut q_ui_tools: Query<(&mut TextureAtlasSprite, &UI
 }
 
 fn expedition_buttons(
-    mut q_interaction: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<LeaveButton>)>,
-    mut ev_clear: EventWriter<ExpeditionClear>,
-    mut ev_finish: EventWriter<ExpeditionFinish>,
-    curr_state: Res<State<AppState>>,
+    mut q_leave_button: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<LeaveButton>)>,
+    mut ev_leave: EventWriter<ExpeditionLeave>,
 ) {
-    for (interaction, mut bg_color) in &mut q_interaction {
+    for (interaction, mut bg_color) in &mut q_leave_button {
         match *interaction {
             Interaction::Pressed => {
-                match curr_state.to_owned() {
-                    AppState::Expedition => {
-                        ev_clear.send(ExpeditionClear::AbandonSession);
-                        info!("sent an AbandonSession");
-                    }
-                    AppState::ExpeditionFinish => {
-                        ev_finish.send(ExpeditionFinish::Finish);
-                        info!("sent a Finish");
-                    }
-                    _ => {
-                        unreachable!("expedition_buttons should not be ran in this state");
-                    }
-                }
+                ev_leave.send_default();
                 bg_color.0 = DARK_MAROON;
             }
             Interaction::Hovered => {
@@ -231,13 +242,26 @@ fn expedition_buttons(
     }
 }
 
-fn reveal_clear_menu(
-    mut ev_expedition_clear: EventReader<ExpeditionClear>,
-    mut q_clear_menu: Query<&mut Visibility, With<ExpeditionClearMenu>>,
-) {
-    let Some(_ec) = ev_expedition_clear.read().next() else {
-        return;
+fn update_stability_text(mut q_stability_text: Query<&mut Text, With<StabilityText>>, stability: Res<Stability>) {
+    let mut stability_text = match q_stability_text.get_single_mut() {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("No stability text found so cannot update it., {}", e);
+            return;
+        }
     };
+
+    stability_text.sections[1].value = stability.remaining.to_string();
+}
+
+fn reveal_clear_menu(
+    mut q_clear_menu: Query<&mut Visibility, With<ExpeditionClearMenu>>,
+    expedition_status: Res<ExpeditionStatus>,
+) {
+    if !(expedition_status.is_changed() && matches!(*expedition_status, ExpeditionStatus::Cleared)) {
+        return;
+    }
+
     let mut clear_menu = q_clear_menu.single_mut();
     match *clear_menu {
         Visibility::Hidden => {
