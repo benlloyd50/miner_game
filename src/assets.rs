@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
+use bevy_kira_audio::AudioSource;
 
 use crate::{expedition::Area, AppState};
 
@@ -12,6 +13,7 @@ impl Plugin for AssetLoadPlugin {
                 .with_dynamic_assets_file::<StandardDynamicAssetCollection>("full_dynamic_collection.assets.ron")
                 .load_collection::<SpriteAssets>()
                 .load_collection::<UiAssets>()
+                .load_collection::<SoundAssets>()
                 .continue_to_state(AppState::AreaViewer { curr_area: Area::TheCaves }),
         );
     }
@@ -38,11 +40,20 @@ pub struct UiAssets {
     #[asset(key = "clear_menu")]
     pub clear_menu: Handle<Image>,
 
-    #[asset(key = "stability")]
-    pub stability_bar: Handle<Image>,
-    #[asset(key = "stability_full")]
-    pub stability_bar_full: Handle<Image>,
-
     #[asset(key = "kaph")]
     pub text: Handle<Font>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct SoundAssets {
+    #[asset(key = "rock_impact1")]
+    pub mine_rock1: Handle<AudioSource>,
+    #[asset(key = "rock_impact2")]
+    pub mine_rock2: Handle<AudioSource>,
+    #[asset(key = "rock_impact3")]
+    pub mine_rock3: Handle<AudioSource>,
+    #[asset(key = "rock_impact4")]
+    pub mine_rock4: Handle<AudioSource>,
+    #[asset(key = "rock_impact5")]
+    pub mine_rock5: Handle<AudioSource>,
 }

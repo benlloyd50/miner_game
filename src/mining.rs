@@ -66,7 +66,7 @@ struct TileHit {
 }
 
 #[derive(Event)]
-struct MineAction {
+pub struct MineAction {
     tile_x: u32,
     tile_y: u32,
 }

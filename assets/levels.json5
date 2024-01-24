@@ -16,6 +16,11 @@
                 size: [13, 13],
                 stability: "Normal",
             },
+            {
+                name: "Unstable Walls",
+                size: [30, 30],
+                stability: "Normal",
+            },
         ]
     },
     "The Collapse": {

@@ -1,4 +1,5 @@
 mod assets;
+mod audio_events;
 mod camera;
 mod consts;
 mod data_read;
@@ -11,11 +12,13 @@ mod treasures;
 mod ui;
 
 use assets::AssetLoadPlugin;
+use audio_events::AudioEventsPlugin;
 use bevy::{
     log::LogPlugin,
     prelude::*,
     window::{WindowMode, WindowResolution},
 };
+use bevy_kira_audio::AudioPlugin;
 use bevy_mod_picking::DefaultPickingPlugins;
 use camera::CameraPlugin;
 use data_read::{load_area_info_into_db, load_treasures_into_db};
@@ -49,6 +52,8 @@ fn main() {
                     level: bevy::log::Level::DEBUG,
                 })
                 .set(ImagePlugin::default_nearest()),
+            AudioPlugin,
+            AudioEventsPlugin,
             DefaultPickingPlugins,
             CameraPlugin,
             MiningPlugin,
